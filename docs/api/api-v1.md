@@ -48,11 +48,37 @@
 
 ## 2. 공연 조회
 
-### `GET /concerts?page=0&size=20`
-→ `200` 공연 목록 (페이지)
+### `GET /concerts?page=0&size=20&sort=id,desc`
+- `page`: 0부터 시작. `size`: 기본 20, 최대 100
+- `sort`: `id` 또는 `title`만 허용 (기본 `id,desc` = 최근 등록순). 그 외 필드는 400 `VALIDATION_FAILED`
+
+→ `200`
+```json
+{
+  "content": [
+    { "concertId": 3, "title": "겨울 콘서트", "venue": "올림픽홀" }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
 
 ### `GET /concerts/{concertId}`
-→ `200` 공연 상세 + 회차 목록 `[{ "performanceId", "startsAt", "bookingOpensAt" }]`
+→ `200` (회차는 시작 시각 순)
+```json
+{
+  "concertId": 3,
+  "title": "겨울 콘서트",
+  "venue": "올림픽홀",
+  "description": "...",
+  "performances": [
+    { "performanceId": 12, "startsAt": "2026-12-24T10:00:00Z", "bookingOpensAt": "2026-12-17T10:00:00Z" }
+  ]
+}
+```
+실패: 404 `NOT_FOUND`, 숫자가 아닌 id는 400 `VALIDATION_FAILED`
 
 ### `GET /performances/{performanceId}/seats`
 가장 많이 호출되는 API. 6주차 성능 측정 대상.
