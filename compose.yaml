@@ -1,0 +1,35 @@
+# 로컬 개발용 인프라. 애플리케이션은 IDE나 ./gradlew bootRun으로 실행한다.
+# Spring Boot Docker Compose 지원이 bootRun 시 이 파일을 자동으로 띄운다.
+# 직접 띄우려면: docker compose up -d
+#
+# ※ 여기 적힌 계정·비밀번호는 로컬 전용이다. 운영 비밀값은 절대 리포에 넣지 않는다 (N6).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ticketrush
+      POSTGRES_USER: ticketrush
+      POSTGRES_PASSWORD: ticketrush-local
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketrush -d ticketrush"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

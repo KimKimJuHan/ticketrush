@@ -1,0 +1,41 @@
+# 공통 설정. 환경마다 달라지는 값은 환경변수로 덮어쓴다 (${이름:기본값}).
+# 기본값은 로컬 개발(compose.yaml) 기준이다.
+
+spring:
+  application:
+    name: ticketrush
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ticketrush}
+    username: ${DB_USERNAME:ticketrush}
+    password: ${DB_PASSWORD:ticketrush-local}
+
+  jpa:
+    hibernate:
+      # 스키마는 Flyway만 바꾼다. 엔티티와 스키마가 다르면 시작하지 않는다 (ADR-0002)
+      ddl-auto: validate
+    # 컨트롤러까지 DB 커넥션을 붙잡지 않게 한다. 부하 상황에서 커넥션 고갈을 막는 실무 기본값
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  # 종료 신호를 받으면 처리 중인 요청을 끝낸 뒤 내려간다 (배포 중 요청 유실 방지)
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      # /actuator/health/liveness, /readiness 를 연다 (컨테이너 헬스체크용)
+      probes:
+        enabled: true
