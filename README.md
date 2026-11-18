@@ -4,7 +4,7 @@
 
 > 인기 공연 오픈 직후 수천 명이 동시에 몰리는 상황을 재현하고, **중복 판매 0건**과 **응답 p95 0.5초**를 목표로 설계·측정·개선한 기록입니다.
 
-🚧 **진행 중** · 현재 단계: MVP
+🚧 **진행 중** · 현재 단계: 관측성·첫 부하 테스트
 
 ## 목표 (SLO)
 
@@ -18,7 +18,7 @@
 ## 기술 스택
 
 Java 21 · Spring Boot · Spring Security(JWT) · Spring Data JPA · PostgreSQL · Redis · Flyway · Testcontainers · Docker Compose · GitHub Actions
-(예정) k6 · Prometheus · Grafana · Loki · Terraform · AWS
+Docker · Prometheus · Grafana · (예정) k6 · Terraform · AWS
 
 ## 설계 문서
 
@@ -27,7 +27,7 @@ Java 21 · Spring Boot · Spring Security(JWT) · Spring Data JPA · PostgreSQL 
 | [ERD](docs/design/erd.md) | 테이블 구조와 설계 이유 |
 | [좌석 상태 전이](docs/design/seat-state.md) | AVAILABLE → HELD → SOLD 규칙과 동시성 위험 지점 |
 | [API 명세 v1](docs/api/api-v1.md) | 엔드포인트, 에러 코드 |
-| [결정 기록 (ADR)](docs/adr/) | 주요 기술 결정과 이유 |
+| [결정 기록 (ADR)](docs/adr/) | 주요 기술 결정과 이유 (관측성: ADR-0005) |
 
 ## 로컬 실행
 
@@ -43,12 +43,28 @@ curl localhost:8080/actuator/health
 ./gradlew test
 ```
 
+## 관측성 스택으로 실행 (부하 테스트용)
+
+앱·DB·Redis·Prometheus·Grafana를 한 번에 띄운다. 필요: Docker Desktop
+
+```bash
+docker compose -f deploy/local/compose.yaml up -d --build
+```
+
+| 서비스 | 주소 |
+| --- | --- |
+| API | http://localhost:8080 |
+| Grafana (대시보드 "TicketRush 개요") | http://localhost:3000 (admin / admin) |
+| Prometheus | http://localhost:9090 |
+
+<!-- TODO: 첫 부하 테스트 후 대시보드 캡처를 docs/images/에 추가하고 여기에 넣는다 -->
+
 ## 진행 기록
 
 | 기간 | 단계 | 상태 |
 | --- | --- | --- |
 | ~11/16 | 설계(ERD, API, ADR), 뼈대, CI, 중복 판매 방지 제약조건 테스트 | ✅ |
-| ~11/23 | MVP: 공연 조회 ✅ · 좌석 조회 ✅ · 로그인(JWT) ✅ · 좌석 선점 ✅ · 예매 확정 ✅ | 진행 중 |
-| 11/24~11/30 | Docker 이미지, Prometheus·Grafana, 첫 k6 부하 테스트 | |
+| ~11/18 | MVP: 공연 조회 · 좌석 조회 · 로그인(JWT) · 좌석 선점 · 예매 확정 | ✅ |
+| 11/24~11/30 | Docker 이미지 ✅ · Prometheus·Grafana ✅ · 첫 k6 부하 테스트 | 진행 중 |
 | 12/1~12/14 | Terraform으로 AWS 구축, 자동 배포, 동시성 개선 비교 | |
 | 12/15~ | 장애 실험·장애 보고서, 마무리 | |

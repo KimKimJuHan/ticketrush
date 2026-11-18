@@ -8,6 +8,7 @@ import io.github.kimkimjuhan.ticketrush.reservation.domain.ReservationItemReposi
 import io.github.kimkimjuhan.ticketrush.seat.application.dto.HoldResponse;
 import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeat;
 import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeatRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -35,6 +36,7 @@ public class SeatHoldService {
     private final ReservationItemRepository reservationItemRepository;
     private final HoldProperties holdProperties;
     private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
     /** 요청한 좌석은 전부 선점되거나 전부 실패한다. 하나라도 실패하면 예외 → 트랜잭션 롤백. */
     @Transactional
@@ -73,6 +75,8 @@ public class SeatHoldService {
         // ③ 쓰기 (트랜잭션 커밋 시 JPA 변경 감지로 UPDATE)
         Instant expiresAt = now.plus(holdProperties.duration());
         seats.forEach(seat -> seat.hold(userId, expiresAt));
+        // 선점 성공 좌석 수. 같은 좌석의 성공이 여러 번 기록되면 중복 선점이 일어난 것이다
+        meterRegistry.counter("ticketrush.seat.holds").increment(seats.size());
 
         return new HoldResponse(List.copyOf(seatIds), expiresAt);
     }

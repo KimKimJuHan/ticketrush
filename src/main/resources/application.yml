@@ -48,9 +48,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        # prometheus: 지표 수집용. 운영에서는 로드밸런서에 노출하지 않고 내부망에서만 수집한다
+        include: health, info, prometheus
   endpoint:
     health:
       # /actuator/health/liveness, /readiness 를 연다 (컨테이너 헬스체크용)
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # 응답시간 히스토그램을 내보내야 Prometheus에서 p95·p99를 계산할 수 있다 (SLO 측정)
+      percentiles-histogram:
+        http.server.requests: true
