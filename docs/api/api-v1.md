@@ -29,6 +29,7 @@
 | `NOT_HOLDER` | 403 | 본인이 선점하지 않은 좌석 |
 | `NOT_FOUND` | 404 | 리소스 없음 |
 | `EMAIL_ALREADY_EXISTS` | 409 | 이미 가입된 이메일 (대소문자 구분 없음) |
+| `DUPLICATE_REQUEST` | 409 | 같은 Idempotency-Key 요청이 동시에 처리 중 |
 | `BOOKING_NOT_OPEN` | 409 | 예매 오픈 전 |
 | `SEAT_UNAVAILABLE` | 409 | 이미 선점·판매된 좌석 |
 | `SEAT_LIMIT_EXCEEDED` | 409 | 1인 매수 한도 초과 |
@@ -115,7 +116,10 @@
 { "seatIds": [501, 502], "expiresAt": "2026-12-24T11:05:00Z" }
 ```
 - 요청한 좌석은 **전부 선점되거나 전부 실패**한다(원자성). 한 좌석이라도 불가능하면 409.
-- 실패: `BOOKING_NOT_OPEN`, `SEAT_UNAVAILABLE`, `SEAT_LIMIT_EXCEEDED`
+- 선점 유지 시간 5분. 본인이 이미 선점한 좌석을 다시 요청하면 만료 시각이 연장된다.
+- 1인 한도 = 이 회차에서 선점 중인 좌석 + 이미 구매한 좌석 + 이번 요청 ≤ `max_seats_per_user`
+- 실패: 409 `BOOKING_NOT_OPEN` · `SEAT_UNAVAILABLE` · `SEAT_LIMIT_EXCEEDED`, 404 `NOT_FOUND`(이 회차에 없는 좌석)
+- ⚠️ 현재 버전은 **동시 요청에 대한 제어가 없다**(의도적, ADR-0004). 같은 좌석에 동시 요청 시 둘 다 성공 응답을 받을 수 있다.
 
 ### `DELETE /performances/{performanceId}/holds/{seatId}`
 본인 선점 해제 → `204 No Content`
@@ -131,13 +135,14 @@
 ```json
 { "reservationId": 9001, "status": "CONFIRMED", "totalPrice": 330000, "seats": [501, 502] }
 ```
-- 같은 `Idempotency-Key`로 다시 요청하면 새 예매를 만들지 않고 **처음 결과를 그대로** 돌려준다.
-- 실패: `NOT_HOLDER`, `HOLD_EXPIRED`
+- 같은 `Idempotency-Key`로 다시 요청하면 새 예매·결제를 만들지 않고 **처음 결과를 그대로** 돌려준다.
+- `Idempotency-Key`는 1~64자. 없으면 400 `VALIDATION_FAILED`
+- 실패: 403 `NOT_HOLDER`(선점하지 않았거나 다른 사람에게 덮어써짐), 409 `HOLD_EXPIRED`, 409 `SEAT_UNAVAILABLE`(DB 제약조건이 중복 판매를 막은 경우)
 
-### `GET /reservations/me`
+### `GET /reservations/me` (예정)
 → `200` 내 예매 목록 (최신순)
 
-### `POST /reservations/{reservationId}/cancel`
+### `POST /reservations/{reservationId}/cancel` (예정)
 → `200` `{ "reservationId": 9001, "status": "CANCELLED" }`, 좌석은 다시 `AVAILABLE`
 
 ## 5. 운영

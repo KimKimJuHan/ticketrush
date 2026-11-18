@@ -34,6 +34,11 @@ ticketrush:
     # 기본값은 로컬 개발 전용. 운영에서는 반드시 환경변수 JWT_SECRET(32바이트 이상)으로 덮어쓴다
     secret: ${JWT_SECRET:local-dev-only-secret-change-me-32bytes!!}
     access-token-ttl: 1h
+  hold:
+    # 좌석 선점 유지 시간 (F4)
+    duration: 5m
+    # 만료된 선점을 정리하는 주기(밀리초, F6). 정리 전에도 만료된 좌석은 조회·선점 시 AVAILABLE로 취급한다
+    cleanup-interval-ms: 30000
 
 server:
   # 종료 신호를 받으면 처리 중인 요청을 끝낸 뒤 내려간다 (배포 중 요청 유실 방지)

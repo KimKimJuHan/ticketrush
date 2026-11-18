@@ -1,0 +1,8 @@
+# 테스트 전용 설정 덮어쓰기.
+# classpath:/config/application.yml은 classpath:/application.yml보다 우선하므로, 여기 적은 키만 바뀐다.
+
+ticketrush:
+  hold:
+    # 테스트 도중 스케줄러가 끼어들어 선점 상태를 바꾸면 결과가 불안정해진다(flaky).
+    # 사실상 실행되지 않게 1시간으로 두고, 정리 로직은 ExpiredHoldCleanerTest에서 직접 호출해 검증한다.
+    cleanup-interval-ms: 3600000

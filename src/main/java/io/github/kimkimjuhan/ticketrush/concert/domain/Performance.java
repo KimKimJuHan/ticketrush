@@ -49,4 +49,9 @@ public class Performance {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /** 예매 오픈 시각 이후이고 공연 시작 전이면 예매할 수 있다. */
+    public boolean isBookingOpenAt(Instant now) {
+        return !now.isBefore(bookingOpensAt) && now.isBefore(startsAt);
+    }
 }
