@@ -71,8 +71,46 @@ public class PerformanceSeat {
     public boolean isAvailableAt(Instant now) {
         return switch (status) {
             case AVAILABLE -> true;
-            case HELD -> holdExpiresAt != null && !holdExpiresAt.isAfter(now);
+            case HELD -> isHoldExpired(now);
             case SOLD -> false;
         };
+    }
+
+    /** 이 사용자가 선점할 수 있는가. 본인이 이미 선점 중인 좌석은 다시 선점(시간 연장)할 수 있다. */
+    public boolean isHoldableBy(Long userId, Instant now) {
+        return isAvailableAt(now) || isActivelyHeldBy(userId, now);
+    }
+
+    public boolean isActivelyHeldBy(Long userId, Instant now) {
+        return status == SeatStatus.HELD && userId.equals(heldByUserId) && !isHoldExpired(now);
+    }
+
+    public boolean isHeldBy(Long userId) {
+        return status == SeatStatus.HELD && userId.equals(heldByUserId);
+    }
+
+    /** AVAILABLE → HELD. 호출 전에 {@link #isHoldableBy}로 확인해야 한다. */
+    public void hold(Long userId, Instant expiresAt) {
+        this.status = SeatStatus.HELD;
+        this.heldByUserId = userId;
+        this.holdExpiresAt = expiresAt;
+    }
+
+    /** HELD → AVAILABLE (본인 취소). */
+    public void releaseHold() {
+        this.status = SeatStatus.AVAILABLE;
+        this.heldByUserId = null;
+        this.holdExpiresAt = null;
+    }
+
+    /** HELD → SOLD (결제 완료). DB CHECK 제약상 SOLD 상태에서는 선점 정보를 비워야 한다. */
+    public void markSold() {
+        this.status = SeatStatus.SOLD;
+        this.heldByUserId = null;
+        this.holdExpiresAt = null;
+    }
+
+    private boolean isHoldExpired(Instant now) {
+        return holdExpiresAt != null && !holdExpiresAt.isAfter(now);
     }
 }
