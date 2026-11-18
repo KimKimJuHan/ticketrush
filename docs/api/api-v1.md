@@ -23,9 +23,12 @@
 | code | status | 의미 |
 | --- | --- | --- |
 | `VALIDATION_FAILED` | 400 | 요청 형식 오류 |
-| `UNAUTHORIZED` | 401 | 토큰 없음·만료 |
+| `UNAUTHORIZED` | 401 | 토큰 없음·만료·위조 |
+| `INVALID_CREDENTIALS` | 401 | 이메일 또는 비밀번호 불일치 (어느 쪽인지 구분하지 않음) |
+| `FORBIDDEN` | 403 | 권한 없음 |
 | `NOT_HOLDER` | 403 | 본인이 선점하지 않은 좌석 |
 | `NOT_FOUND` | 404 | 리소스 없음 |
+| `EMAIL_ALREADY_EXISTS` | 409 | 이미 가입된 이메일 (대소문자 구분 없음) |
 | `BOOKING_NOT_OPEN` | 409 | 예매 오픈 전 |
 | `SEAT_UNAVAILABLE` | 409 | 이미 선점·판매된 좌석 |
 | `SEAT_LIMIT_EXCEEDED` | 409 | 1인 매수 한도 초과 |
@@ -36,15 +39,20 @@
 
 ### `POST /auth/signup`
 ```json
-{ "email": "user@example.com", "password": "8자 이상", "name": "홍길동" }
+{ "email": "user@example.com", "password": "8~64자", "name": "홍길동" }
 ```
-→ `201 Created`
+→ `201 Created` `{ "userId": 1 }`
+- 이메일은 소문자로 정규화해 저장한다. 실패: 400 `VALIDATION_FAILED`, 409 `EMAIL_ALREADY_EXISTS`
 
 ### `POST /auth/login`
 ```json
 { "email": "user@example.com", "password": "..." }
 ```
-→ `200 OK` `{ "accessToken": "eyJ...", "expiresIn": 3600 }`
+→ `200 OK` `{ "accessToken": "eyJ...", "tokenType": "Bearer", "expiresIn": 3600 }`
+- 토큰: HS256 서명 JWT, 유효시간 1시간, `sub` = 사용자 ID. 실패: 401 `INVALID_CREDENTIALS`
+
+### `GET /users/me` 🔒
+→ `200` `{ "userId": 1, "email": "user@example.com", "name": "홍길동" }`
 
 ## 2. 공연 조회
 
@@ -92,7 +100,9 @@
   ]
 }
 ```
-`status`는 `AVAILABLE` 또는 `UNAVAILABLE`만 노출한다. 다른 사람의 선점 여부를 구분해 보여주지 않는다.
+- `status`는 `AVAILABLE` 또는 `UNAVAILABLE`만 노출한다. 다른 사람의 선점 여부를 구분해 보여주지 않는다.
+- 선점 시간이 지난 좌석은 정리 작업 전이라도 `AVAILABLE`로 보인다.
+- 정렬: 구역 → 열 → 번호. 실패: 404 `NOT_FOUND`
 
 ## 3. 선점 🔒
 

@@ -8,6 +8,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -34,6 +36,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.status())
                 .body(problem(errorCode, ex.getMessage(), request));
+    }
+
+    /** 토큰 없음·만료·위조. SecurityConfig의 진입점이 이 핸들러로 넘겨준다. */
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ProblemDetail> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
+        return ResponseEntity.status(errorCode.status())
+                .body(problem(errorCode, errorCode.defaultMessage(), request));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        ErrorCode errorCode = ErrorCode.FORBIDDEN;
+        return ResponseEntity.status(errorCode.status())
+                .body(problem(errorCode, errorCode.defaultMessage(), request));
     }
 
     @ExceptionHandler(Exception.class)
@@ -64,6 +81,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private static ErrorCode codeFor(HttpStatusCode status) {
+        if (status.value() == 401) {
+            return ErrorCode.UNAUTHORIZED;
+        }
+        if (status.value() == 403) {
+            return ErrorCode.FORBIDDEN;
+        }
         if (status.value() == 404) {
             return ErrorCode.NOT_FOUND;
         }

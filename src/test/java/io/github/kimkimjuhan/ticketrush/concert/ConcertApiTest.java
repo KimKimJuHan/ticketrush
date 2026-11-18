@@ -4,42 +4,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.github.kimkimjuhan.ticketrush.TestcontainersConfiguration;
-import org.junit.jupiter.api.BeforeEach;
+import io.github.kimkimjuhan.ticketrush.support.ApiTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 /**
  * 공연 조회 API 통합 테스트 (F2).
  *
- * <p>컨트롤러부터 실제 PostgreSQL까지 전부 거친다. HTTP 서버는 띄우지 않고 MockMvc로 요청을 흉내 낸다.
+ * <p>컨트롤러부터 실제 PostgreSQL까지 전부 거친다. 로그인 없이 호출할 수 있는지(공개 API)도 함께 확인된다.
  * 테스트 데이터는 SQL로 넣는다. 아직 공연 등록 API(F10)가 없기 때문이다.
  */
-@SpringBootTest
-@Import(TestcontainersConfiguration.class)
-class ConcertApiTest {
-
-    @Autowired
-    WebApplicationContext context;
-
-    @Autowired
-    JdbcTemplate jdbc;
-
-    MockMvc mvc;
-
-    @BeforeEach
-    void setUp() {
-        mvc = MockMvcBuilders.webAppContextSetup(context).build();
-        jdbc.execute("TRUNCATE payments, reservation_items, reservations, performance_seats, "
-                + "performances, concerts, users RESTART IDENTITY CASCADE");
-    }
+class ConcertApiTest extends ApiTestSupport {
 
     @Test
     @DisplayName("목록은 최근 등록순으로 페이지 단위로 조회된다")
@@ -99,17 +74,5 @@ class ConcertApiTest {
         mvc.perform(get("/api/v1/concerts").param("sort", "venue,asc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
-    }
-
-    private long insertConcert(String title) {
-        return jdbc.queryForObject(
-                "INSERT INTO concerts (title, venue) VALUES (?, '테스트홀') RETURNING id", Long.class, title);
-    }
-
-    private long insertPerformance(long concertId, String startsAtIso) {
-        return jdbc.queryForObject("""
-                INSERT INTO performances (concert_id, starts_at, booking_opens_at)
-                VALUES (?, ?::timestamptz, ?::timestamptz - interval '7 days') RETURNING id
-                """, Long.class, concertId, startsAtIso, startsAtIso);
     }
 }

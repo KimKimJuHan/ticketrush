@@ -29,6 +29,12 @@ spring:
         # ?size=100000 같은 요청으로 한 번에 대량 조회하는 것을 막는다
         max-page-size: 100
 
+ticketrush:
+  jwt:
+    # 기본값은 로컬 개발 전용. 운영에서는 반드시 환경변수 JWT_SECRET(32바이트 이상)으로 덮어쓴다
+    secret: ${JWT_SECRET:local-dev-only-secret-change-me-32bytes!!}
+    access-token-ttl: 1h
+
 server:
   # 종료 신호를 받으면 처리 중인 요청을 끝낸 뒤 내려간다 (배포 중 요청 유실 방지)
   shutdown: graceful
