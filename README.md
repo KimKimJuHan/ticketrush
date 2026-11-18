@@ -4,7 +4,7 @@
 
 > 인기 공연 오픈 직후 수천 명이 동시에 몰리는 상황을 재현하고, **중복 판매 0건**과 **응답 p95 0.5초**를 목표로 설계·측정·개선한 기록입니다.
 
-🚧 **진행 중** · 현재 단계: 3주차 (MVP)
+🚧 **진행 중** · 현재 단계: MVP
 
 ## 목표 (SLO)
 
@@ -17,7 +17,7 @@
 
 ## 기술 스택
 
-Java 21 · Spring Boot · Spring Data JPA · PostgreSQL · Redis · Flyway · Testcontainers · Docker Compose · GitHub Actions
+Java 21 · Spring Boot · Spring Security(JWT) · Spring Data JPA · PostgreSQL · Redis · Flyway · Testcontainers · Docker Compose · GitHub Actions
 (예정) k6 · Prometheus · Grafana · Loki · Terraform · AWS
 
 ## 설계 문서
@@ -45,15 +45,10 @@ curl localhost:8080/actuator/health
 
 ## 진행 기록
 
-| 주차 | 단계 | 상태 |
+| 기간 | 단계 | 상태 |
 | --- | --- | --- |
-| 0 | Java·Spring 기초 | 진행 중 |
-| 1 | 설계 (ERD, API, ADR) | ✅ |
-| 2 | 프로젝트 뼈대, CI, 중복 판매 방지 제약조건 테스트 | ✅ |
-| 3~4 | MVP (공연 조회 → 좌석 조회 → 인증 → 선점 → 예매) | 진행 중 |
-| 5 | 관측성 | |
-| 6 | 첫 부하 테스트 | |
-| 7~8 | 동시성 개선 실험 | |
-| 9~10 | AWS, Terraform | |
-| 11 | 장애 실험, 포스트모템 | |
-| 12 | 마무리 | |
+| ~11/16 | 설계(ERD, API, ADR), 뼈대, CI, 중복 판매 방지 제약조건 테스트 | ✅ |
+| ~11/23 | MVP: 공연 조회 ✅ · 좌석 조회 · 로그인(JWT) · 좌석 선점 · 예매 확정 | 진행 중 |
+| 11/24~11/30 | Docker 이미지, Prometheus·Grafana, 첫 k6 부하 테스트 | |
+| 12/1~12/14 | Terraform으로 AWS 구축, 자동 배포, 동시성 개선 비교 | |
+| 12/15~ | 장애 실험·장애 보고서, 마무리 | |
