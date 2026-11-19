@@ -7,8 +7,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.github.kimkimjuhan.ticketrush.support.ApiTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 
-/** Prometheus가 수집하는 지표 엔드포인트. 대시보드가 의존하는 지표 이름이 실제로 나오는지 확인한다. */
+/**
+ * Prometheus가 수집하는 지표 엔드포인트. 대시보드가 의존하는 지표 이름이 실제로 나오는지 확인한다.
+ *
+ * <p>Spring Boot는 테스트에서 지표 내보내기(Prometheus 등)를 기본으로 끈다. 테스트가 실제 모니터링 시스템에
+ * 데이터를 보내지 않게 하기 위해서다. 이 테스트는 엔드포인트 자체를 검증하므로 {@link AutoConfigureMetrics}로 켠다.
+ * (설정이 달라 Spring 컨텍스트를 따로 띄우므로 다른 테스트보다 몇 초 느리다)
+ */
+@AutoConfigureMetrics
 class MetricsEndpointTest extends ApiTestSupport {
 
     @Test
