@@ -10,6 +10,7 @@ import io.github.kimkimjuhan.ticketrush.reservation.domain.Reservation;
 import io.github.kimkimjuhan.ticketrush.reservation.domain.ReservationRepository;
 import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeat;
 import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeatRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -39,6 +40,7 @@ public class ReservationService {
     private final PaymentRepository paymentRepository;
     private final PerformanceSeatRepository seatRepository;
     private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public ReservationResponse reserve(Long userId, String idempotencyKey, ReserveRequest request) {
@@ -74,6 +76,8 @@ public class ReservationService {
         } catch (DataIntegrityViolationException e) {
             throw translate(e);
         }
+        meterRegistry.counter("ticketrush.reservations.confirmed").increment();
+        meterRegistry.counter("ticketrush.seats.sold").increment(seats.size());
         return ReservationResponse.from(reservation);
     }
 

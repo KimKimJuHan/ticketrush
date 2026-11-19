@@ -1,0 +1,100 @@
+# =============================================================================
+# 부하 테스트·관측용 로컬 전체 스택: 앱 + PostgreSQL + Redis + Prometheus + Grafana
+#
+#   실행: docker compose -f deploy/local/compose.yaml up -d --build
+#   종료: docker compose -f deploy/local/compose.yaml down          (데이터 유지)
+#         docker compose -f deploy/local/compose.yaml down -v       (데이터까지 삭제)
+#
+#   앱          http://localhost:8080
+#   Grafana     http://localhost:3000   (admin / admin)
+#   Prometheus  http://localhost:9090
+#   PostgreSQL  localhost:15432          (DBeaver 접속용, 개발용 5432와 겹치지 않게)
+#
+# 개발용 compose.yaml(루트)과는 별개다. 루트 파일은 bootRun 시 DB·Redis만 띄운다.
+# ※ 계정·비밀번호는 로컬 전용 값이다.
+# =============================================================================
+
+name: ticketrush-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ticketrush
+      POSTGRES_USER: ticketrush
+      POSTGRES_PASSWORD: ticketrush-local
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticketrush -d ticketrush"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ../..
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/ticketrush
+      DB_USERNAME: ticketrush
+      DB_PASSWORD: ticketrush-local
+      REDIS_HOST: redis
+      JWT_SECRET: local-stack-only-secret-change-me-32bytes!!
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 부하 테스트 결과를 PC 사양과 무관하게 비교할 수 있도록 자원을 고정한다 (AWS 인스턴스 크기와 맞출 예정)
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1g
+    healthcheck:
+      # JRE 이미지에는 curl이 없어 bash의 /dev/tcp로 포트가 열렸는지만 확인한다
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres-data:

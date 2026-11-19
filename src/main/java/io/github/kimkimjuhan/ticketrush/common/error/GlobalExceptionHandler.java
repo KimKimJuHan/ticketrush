@@ -1,5 +1,6 @@
 package io.github.kimkimjuhan.ticketrush.common.error;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import org.slf4j.Logger;
@@ -31,9 +32,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String CODE = "code";
 
+    private final MeterRegistry meterRegistry;
+
+    public GlobalExceptionHandler(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
+
     @ExceptionHandler(BusinessException.class)
     ResponseEntity<ProblemDetail> handleBusiness(BusinessException ex, HttpServletRequest request) {
         ErrorCode errorCode = ex.getErrorCode();
+        // 비즈니스 실패를 코드별로 센다. NOT_HOLDER 증가 = 선점이 다른 사용자에게 덮어써진 피해 건수 (Lost Update)
+        meterRegistry.counter("ticketrush.business.errors", "code", errorCode.code()).increment();
         return ResponseEntity.status(errorCode.status())
                 .body(problem(errorCode, ex.getMessage(), request));
     }

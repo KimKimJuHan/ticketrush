@@ -1,0 +1,14 @@
+# 빌드 컨텍스트에서 제외: 이미지 크기와 빌드 시간을 줄이고, 비밀값이 이미지에 들어가는 사고를 막는다
+.git
+.gradle
+.idea
+.vscode
+build
+**/build
+docs
+deploy
+loadtest
+*.md
+.env
+*.env.local
+*.log
