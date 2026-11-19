@@ -29,9 +29,11 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+	testImplementation 'org.springframework.boot:spring-boot-micrometer-metrics-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
@@ -48,4 +50,13 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 컨테이너 이미지에는 실행 가능한 jar 하나만 필요하다. 이름을 고정해 Dockerfile이 버전과 무관하게 동작하게 한다
+tasks.named('bootJar') {
+	archiveFileName = 'app.jar'
+}
+
+tasks.named('jar') {
+	enabled = false
 }
