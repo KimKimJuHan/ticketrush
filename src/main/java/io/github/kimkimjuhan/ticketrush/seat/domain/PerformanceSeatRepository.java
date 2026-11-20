@@ -16,8 +16,6 @@ public interface PerformanceSeatRepository extends JpaRepository<PerformanceSeat
     List<PerformanceSeat> findByPerformanceIdOrderBySectionAscRowLabelAscSeatNumberAsc(Long performanceId);
 
     /** 다른 회차의 좌석 ID를 섞어 보내는 요청을 막기 위해 회차 조건을 함께 건다. */
-    List<PerformanceSeat> findByPerformanceIdAndIdIn(Long performanceId, Collection<Long> seatIds);
-
     /** 잠금 없이 읽는다 (SeatLockMode.NONE). 결과 순서를 비관적 락 쪽과 맞추기 위해 ID 순으로 정렬한다. */
     List<PerformanceSeat> findByPerformanceIdAndIdInOrderById(Long performanceId, Collection<Long> seatIds);
 
@@ -54,12 +52,22 @@ public interface PerformanceSeatRepository extends JpaRepository<PerformanceSeat
      *
      * <p>엔티티를 하나씩 읽어 바꾸지 않고 UPDATE 한 문장으로 처리한다. 서버가 여러 대여도 같은 행을 같은 값으로
      * 바꾸는 멱등 연산이라 중복 실행돼도 결과가 같다. 부분 인덱스 ix_performance_seats_hold_expiry를 탄다.
+     *
+     * <p>대상 행을 <b>좌석 ID 순서로 먼저 잠근 뒤</b> 바꾼다 (ADR-0007). 단순히 {@code UPDATE ... WHERE}로 쓰면
+     * 만료 시각 인덱스 순서로 행을 잠그는데, 선점 트랜잭션은 ID 순서로 잠그므로 두 순서가 엇갈리면 교착 상태가 생긴다
+     * (예: 선점이 좌석 1을 쥐고 2를 기다리는 동안 정리 작업이 2를 쥐고 1을 기다림).
+     * 다른 트랜잭션이 바꾸는 중인 행은 그 커밋을 기다린 뒤 조건을 다시 확인하므로, 그 사이 새로 선점된 좌석은 건드리지 않는다.
      */
     @Modifying
     @Query(value = """
-            UPDATE performance_seats
+            UPDATE performance_seats s
                SET status = 'AVAILABLE', held_by_user_id = NULL, hold_expires_at = NULL, updated_at = now()
-             WHERE status = 'HELD' AND hold_expires_at <= :now
+              FROM (SELECT id
+                      FROM performance_seats
+                     WHERE status = 'HELD' AND hold_expires_at <= :now
+                     ORDER BY id
+                       FOR UPDATE) expired
+             WHERE s.id = expired.id
             """, nativeQuery = true)
     int releaseExpiredHolds(@Param("now") Instant now);
 }
