@@ -16,8 +16,8 @@ import org.springframework.test.web.servlet.ResultActions;
 /**
  * 좌석 선점 API 통합 테스트 (F4).
  *
- * <p>순차 요청 기준의 규칙만 검증한다. 동시 요청에서의 중복 선점(Lost Update)은 의도적으로 남겨 둔 문제이며,
- * 부하 테스트(k6)로 재현·측정한다 (ADR-0004).
+ * <p>순차 요청 기준의 규칙을 검증한다. 동시 요청에서 한 좌석에 한 명만 선점되는지는
+ * {@link SeatHoldConcurrencyTest}가 검증한다 (ADR-0007).
  */
 class HoldApiTest extends ApiTestSupport {
 
