@@ -54,6 +54,8 @@ services:
       DB_PASSWORD: ticketrush-local
       REDIS_HOST: redis
       JWT_SECRET: local-stack-only-secret-change-me-32bytes!!
+      # 좌석 잠금 방식 (pessimistic | none). loadtest/run.ps1 -Locking 으로 바꾼다
+      HOLD_LOCKING: ${HOLD_LOCKING:-pessimistic}
     ports:
       - "8080:8080"
     depends_on:

@@ -6,7 +6,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -732,6 +732,125 @@
         },
         "colorMode": "value",
         "graphMode": "none"
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "대기 시간 분해: 어디서 기다리는가",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "좌석 행 잠금 대기",
+      "description": "상태를 바꿀 좌석 행을 읽는(잠그는) 데 걸린 시간. 비관적 락에서는 같은 좌석을 먼저 잡은 트랜잭션의 커밋을 기다린 시간이다 (ticketrush.seat.lock.wait)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (mode) (rate(ticketrush_seat_lock_wait_seconds_sum[1m])) / sum by (mode) (rate(ticketrush_seat_lock_wait_seconds_count[1m]))",
+          "legendFormat": "평균 ({{mode}})",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (mode) (ticketrush_seat_lock_wait_seconds_max)",
+          "legendFormat": "최대 ({{mode}})",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "DB 커넥션 획득 대기",
+      "description": "요청이 HikariCP에서 커넥션을 받기까지 기다린 시간. 행 잠금 대기와 비교해 병목이 풀 크기인지 행 경합인지 판단한다",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(hikaricp_connections_acquire_seconds_sum[1m])) / sum(rate(hikaricp_connections_acquire_seconds_count[1m]))",
+          "legendFormat": "평균",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(hikaricp_connections_acquire_seconds_max)",
+          "legendFormat": "최대",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     }
   ]

@@ -39,12 +39,20 @@ ticketrush:
     duration: 5m
     # 만료된 선점을 정리하는 주기(밀리초, F6). 정리 전에도 만료된 좌석은 조회·선점 시 AVAILABLE로 취급한다
     cleanup-interval-ms: 30000
+    # 좌석 상태를 바꿀 때의 잠금 방식 (ADR-0007)
+    #   pessimistic: SELECT ... FOR UPDATE (운영 기본값)
+    #   none: 잠금 없음. 부하 테스트에서 기준선을 재현할 때만 쓴다. 동시 선점이 덮어써질 수 있다
+    locking: ${HOLD_LOCKING:pessimistic}
 
 server:
   # 종료 신호를 받으면 처리 중인 요청을 끝낸 뒤 내려간다 (배포 중 요청 유실 방지)
   shutdown: graceful
 
 management:
+  info:
+    env:
+      # 아래 info.* 값을 /actuator/info로 내보낸다. 부하 테스트가 어떤 설정으로 실행됐는지 기록하는 데 쓴다
+      enabled: true
   endpoints:
     web:
       exposure:
@@ -62,3 +70,8 @@ management:
       # 응답시간 히스토그램을 내보내야 Prometheus에서 p95·p99를 계산할 수 있다 (SLO 측정)
       percentiles-histogram:
         http.server.requests: true
+
+# /actuator/info에 노출할 실행 설정. 비밀값은 넣지 않는다
+info:
+  ticketrush:
+    hold-locking: ${ticketrush.hold.locking}

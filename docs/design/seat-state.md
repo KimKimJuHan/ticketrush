@@ -22,4 +22,4 @@ stateDiagram-v2
 
 ## 이 프로젝트에서 실험할 위험 지점
 
-**AVAILABLE → HELD 화살표**가 핵심 실험 대상이다. 두 요청이 동시에 "이 좌석 AVAILABLE이네?"를 읽고 둘 다 HELD로 바꾸면 한 좌석에 선점자가 둘이 된다(Lost Update). 3~4주차에는 이 문제를 **일부러 그대로 두고**, 6주차 부하 테스트에서 재현한 뒤, 7~8주차에 해결 방식을 비교한다.
+**AVAILABLE → HELD 화살표**가 핵심 실험 대상이다. 두 요청이 동시에 "이 좌석 AVAILABLE이네?"를 읽고 둘 다 HELD로 바꾸면 한 좌석에 선점자가 둘이 된다(Lost Update). MVP에서는 이 문제를 **일부러 그대로 두고** 부하 테스트로 재현한 뒤([기준선 리포트](../perf/2026-11-19-hot-seat-baseline.md)), 비관적 락으로 해결했다([ADR-0007](../adr/0007-pessimistic-seat-lock.md)). 선점·선점 해제·예매 확정은 모두 좌석 행을 `SELECT ... FOR UPDATE`로 잠근 뒤 상태를 바꾼다.

@@ -23,9 +23,16 @@ k6는 Docker 이미지로 실행하므로 따로 설치할 필요가 없습니�
 옵션:
 
 ```powershell
-./loadtest/run.ps1 -HotSeats 10 -Label hot10   # 1,000명이 10석에 몰림 (경합 극대화)
-./loadtest/run.ps1 -Users 300 -Label small     # 사용자 수 줄이기
+./loadtest/run.ps1 -Locking none -Warmup         # 잠금 없음(기준선)으로 앱을 다시 띄우고, 워밍업 1회 후 측정
+./loadtest/run.ps1 -Locking pessimistic -Warmup  # 비관적 락으로 같은 측정
+./loadtest/run.ps1 -HotSeats 10                  # 1,000명이 10석에 몰림 (경합 극대화)
+./loadtest/run.ps1 -Users 300 -Label small       # 사용자 수 줄이기
 ```
+
+- `-Locking`: 앱의 좌석 잠금 방식(`pessimistic` | `none`, ADR-0007). 바꾸면 앱 컨테이너가 새 설정으로 다시 만들어진다. 생략하면 운영 기본값 `pessimistic`.
+- `-Warmup`: 측정 전에 같은 시나리오를 한 번 더 돌린다. 앱이 막 뜬 직후에는 JIT 컴파일 전이라 느리므로, 비교는 워밍업 후 값으로 한다.
+- `-Label`: 결과 파일 이름과 Grafana의 `testid`. 생략하면 `lock-<잠금 방식>`.
+- 실제로 적용된 잠금 방식은 `/actuator/info`에서 읽어 결과 JSON(`config.lockMode`)에 기록된다.
 
 ## 시나리오: hot-seat
 

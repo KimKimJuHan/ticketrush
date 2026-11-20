@@ -8,8 +8,8 @@ import io.github.kimkimjuhan.ticketrush.reservation.domain.Payment;
 import io.github.kimkimjuhan.ticketrush.reservation.domain.PaymentRepository;
 import io.github.kimkimjuhan.ticketrush.reservation.domain.Reservation;
 import io.github.kimkimjuhan.ticketrush.reservation.domain.ReservationRepository;
+import io.github.kimkimjuhan.ticketrush.seat.application.SeatLocker;
 import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeat;
-import io.github.kimkimjuhan.ticketrush.seat.domain.PerformanceSeatRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
@@ -38,7 +38,7 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final PaymentRepository paymentRepository;
-    private final PerformanceSeatRepository seatRepository;
+    private final SeatLocker seatLocker;
     private final Clock clock;
     private final MeterRegistry meterRegistry;
 
@@ -53,7 +53,9 @@ public class ReservationService {
 
         Instant now = clock.instant();
         Set<Long> seatIds = new LinkedHashSet<>(request.seatIds());
-        List<PerformanceSeat> seats = seatRepository.findByPerformanceIdAndIdIn(request.performanceId(), seatIds);
+        // 선점과 같은 방식으로 좌석을 잠근다. 잠그지 않으면 선점이 만료되는 순간 다른 사용자의 새 선점과 이 예매가
+        // 같은 행을 동시에 바꾸며 서로를 덮어쓸 수 있다 (ADR-0007)
+        List<PerformanceSeat> seats = seatLocker.lockSeats(request.performanceId(), seatIds);
         if (seats.size() != seatIds.size()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "이 회차에 없는 좌석이 포함되어 있습니다.");
         }

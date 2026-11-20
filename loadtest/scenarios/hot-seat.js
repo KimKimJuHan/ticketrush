@@ -87,9 +87,19 @@ export function setup() {
         throw new Error(`이미 선점·판매된 좌석이 ${notAvailable}석 있습니다. seed.sql로 초기화하세요.`);
     }
     const hotSeatIds = allSeats.map((s) => s.seatId).sort((a, b) => a - b).slice(0, HOT_SEATS);
+
+    // 서버가 어떤 잠금 방식으로 실행 중인지 결과에 남긴다 (ADR-0007, /actuator/info)
+    const infoRes = http.get(`${BASE_URL}/actuator/info`, { tags: { name: 'setup' } });
+    let lockMode = 'unknown';
+    try {
+        lockMode = infoRes.json('ticketrush.hold-locking') || 'unknown';
+    } catch (e) {
+        // 정보 엔드포인트가 없는 이전 버전 서버
+    }
+
     const startAt = Date.now() + START_DELAY * 1000;
-    console.log(`목표 좌석 ${hotSeatIds.length}석, ${START_DELAY}초 뒤 동시 오픈`);
-    return { hotSeatIds, startAt };
+    console.log(`잠금 방식 ${lockMode}, 목표 좌석 ${hotSeatIds.length}석, ${START_DELAY}초 뒤 동시 오픈`);
+    return { hotSeatIds, startAt, lockMode };
 }
 
 // ---------------------------------------------------------------- 사용자 1명의 행동
@@ -196,7 +206,13 @@ export function handleSummary(data) {
     const result = {
         label: RUN_LABEL,
         finishedAt: new Date().toISOString(),
-        config: { users: USERS, hotSeats: HOT_SEATS, thinkTimeSec: [THINK_MIN, THINK_MAX], startDelaySec: START_DELAY },
+        config: {
+            lockMode: data.setup_data ? data.setup_data.lockMode : 'unknown',
+            users: USERS,
+            hotSeats: HOT_SEATS,
+            thinkTimeSec: [THINK_MIN, THINK_MAX],
+            startDelaySec: START_DELAY,
+        },
         counts: {
             holdSuccess: count('ticketrush_hold_success'),
             holdRejected: count('ticketrush_hold_rejected'),
@@ -217,7 +233,7 @@ export function handleSummary(data) {
     const lines = [
         '',
         '================ TicketRush 핫시트 결과 ================',
-        `좌석 ${HOT_SEATS}석 / 사용자 ${USERS}명`,
+        `잠금 방식 ${result.config.lockMode} / 좌석 ${HOT_SEATS}석 / 사용자 ${USERS}명`,
         `선점 성공 응답        ${c.holdSuccess}  (좌석 수보다 많으면 중복 선점 발생)`,
         `선점 거절(409)        ${c.holdRejected}`,
         `예매 성공             ${c.reserveSuccess}`,

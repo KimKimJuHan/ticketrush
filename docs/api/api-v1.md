@@ -119,7 +119,7 @@
 - 선점 유지 시간 5분. 본인이 이미 선점한 좌석을 다시 요청하면 만료 시각이 연장된다.
 - 1인 한도 = 이 회차에서 선점 중인 좌석 + 이미 구매한 좌석 + 이번 요청 ≤ `max_seats_per_user`
 - 실패: 409 `BOOKING_NOT_OPEN` · `SEAT_UNAVAILABLE` · `SEAT_LIMIT_EXCEEDED`, 404 `NOT_FOUND`(이 회차에 없는 좌석)
-- ⚠️ 현재 버전은 **동시 요청에 대한 제어가 없다**(의도적, ADR-0004). 같은 좌석에 동시 요청 시 둘 다 성공 응답을 받을 수 있다.
+- 동시 요청: 좌석 행을 잠근 뒤 판단하므로(ADR-0007), 같은 좌석에 동시에 요청하면 한 명만 201을 받고 나머지는 409 `SEAT_UNAVAILABLE`을 받는다.
 
 ### `DELETE /performances/{performanceId}/holds/{seatId}`
 본인 선점 해제 → `204 No Content`

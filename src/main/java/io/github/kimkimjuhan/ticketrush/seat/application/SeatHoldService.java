@@ -21,11 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 좌석 선점 (F4) · 선점 해제.
  *
- * <h2>⚠️ 의도적으로 동시성 제어가 없는 버전 (ADR-0004)</h2>
- * 좌석을 읽고(①) → 살 수 있는지 판단하고(②) → HELD로 바꾼다(③). 두 요청이 동시에 ①을 지나면 둘 다 ②를 통과하고,
- * ③에서 나중에 커밋한 쪽이 먼저 쓴 선점자를 덮어쓴다(Lost Update). 두 사용자 모두 "선점 성공" 응답을 받는다.
- * 이 문제를 부하 테스트로 재현·측정한 뒤 개선 방식을 비교하는 것이 이 프로젝트의 핵심이므로, 지금은 고치지 않는다.
- * 중복 <b>판매</b>는 DB 제약조건(ADR-0003)이 막는다.
+ * <h2>동시성 (ADR-0007)</h2>
+ * 좌석을 읽고(①) → 살 수 있는지 판단하고(②) → HELD로 바꾼다(③). 잠금 없이 ①을 하면 두 요청이 동시에 ②를 통과하고,
+ * ③에서 나중에 커밋한 쪽이 먼저 쓴 선점자를 덮어쓴다(Lost Update, 기준선: docs/perf/2026-11-19-hot-seat-baseline.md).
+ * 그래서 ①을 {@link SeatLocker}로 한다. 비관적 락에서는 ①에서 행을 잠그므로, 같은 좌석의 두 번째 요청은 첫 번째
+ * 트랜잭션이 커밋될 때까지 기다렸다가 HELD가 된 최신 값을 읽고 ②에서 거절된다.
+ * 중복 <b>판매</b>는 이와 별개로 DB 제약조건(ADR-0003)이 최종적으로 막는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class SeatHoldService {
 
     private final PerformanceRepository performanceRepository;
     private final PerformanceSeatRepository seatRepository;
+    private final SeatLocker seatLocker;
     private final ReservationItemRepository reservationItemRepository;
     private final HoldProperties holdProperties;
     private final Clock clock;
@@ -50,8 +52,8 @@ public class SeatHoldService {
             throw new BusinessException(ErrorCode.BOOKING_NOT_OPEN);
         }
 
-        // ① 읽기
-        List<PerformanceSeat> seats = seatRepository.findByPerformanceIdAndIdIn(performanceId, seatIds);
+        // ① 읽기. 비관적 락이면 여기서 행을 잠근다 (잠금은 커밋·롤백 때 풀린다)
+        List<PerformanceSeat> seats = seatLocker.lockSeats(performanceId, seatIds);
         if (seats.size() != seatIds.size()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "이 회차에 없는 좌석이 포함되어 있습니다.");
         }
@@ -83,7 +85,7 @@ public class SeatHoldService {
 
     @Transactional
     public void release(Long userId, Long performanceId, Long seatId) {
-        PerformanceSeat seat = seatRepository.findByPerformanceIdAndIdIn(performanceId, List.of(seatId)).stream()
+        PerformanceSeat seat = seatLocker.lockSeats(performanceId, List.of(seatId)).stream()
                 .findFirst()
                 .orElseThrow(() -> BusinessException.notFound("좌석", seatId));
         if (!seat.isHeldBy(userId)) {
