@@ -10,6 +10,8 @@
 #   Prometheus  http://localhost:9090
 #   PostgreSQL  localhost:15432          (DBeaver 접속용, 개발용 5432와 겹치지 않게)
 #
+#   부하 테스트(k6)는 profile로 분리되어 평소 up에는 뜨지 않는다. 실행: loadtest/run.ps1 (loadtest/README.md)
+#
 # 개발용 compose.yaml(루트)과는 별개다. 루트 파일은 bootRun 시 DB·Redis만 띄운다.
 # ※ 계정·비밀번호는 로컬 전용 값이다.
 # =============================================================================
@@ -27,6 +29,8 @@ services:
       - "15432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # 부하 테스트 시드·검증 SQL (psql -f /loadtest/seed/...)
+      - ../../loadtest/seed:/loadtest/seed:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ticketrush -d ticketrush"]
       interval: 5s
@@ -75,6 +79,8 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=7d
+      # k6가 클라이언트 측 지표를 push할 수 있게 remote write 수신을 켠다
+      - --web.enable-remote-write-receiver
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
@@ -95,6 +101,24 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+
+  # 부하 발생기. `docker compose run --rm k6 ...`로만 실행한다 (loadtest/run.ps1)
+  # 앱과 같은 PC에서 돌기 때문에 CPU를 나눠 쓴다. 결과 해석 시 이 점을 감안한다 (AWS 단계에서 분리 예정)
+  k6:
+    image: grafana/k6:1.7.1
+    profiles: ["loadtest"]
+    environment:
+      BASE_URL: http://app:8080
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(95),p(99),max
+    volumes:
+      - ../../loadtest:/scripts:ro
+      - ../../loadtest/results:/results
+    depends_on:
+      app:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
 
 volumes:
   postgres-data:
