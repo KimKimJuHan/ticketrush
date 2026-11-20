@@ -4,21 +4,21 @@
 
 > 인기 공연 오픈 직후 수천 명이 동시에 몰리는 상황을 재현하고, **중복 판매 0건**과 **응답 p95 0.5초**를 목표로 설계·측정·개선한 기록입니다.
 
-🚧 **진행 중** · 현재 단계: 관측성·첫 부하 테스트
+🚧 **진행 중** · 현재 단계: 기준선 측정 완료 → 좌석 선점 동시성 제어 비교
 
 ## 목표 (SLO)
 
 | 지표 | 목표 | 현재 |
 | --- | --- | --- |
-| 좌석 중복 판매 | 0건 | 측정 전 |
-| 예매 API p95 (동시 1,000명) | 500ms 이하 | 측정 전 |
-| 좌석 조회 API p95 (동시 1,000명) | 200ms 이하 | 측정 전 |
-| 요청 성공률 (5xx 제외) | 99.9% 이상 | 측정 전 |
+| 좌석 중복 판매 | 0건 | **0건** ✅ (5회) |
+| 예매 API p95 (동시 1,000명) | 500ms 이하 | 1,573ms ❌ (워밍업 후) |
+| 좌석 조회 API p95 (동시 1,000명) | 200ms 이하 | 1,392ms ❌ (워밍업 후) |
+| 요청 성공률 (5xx 제외) | 99.9% 이상 | 100% ✅ (5xx 0건) |
 
 ## 기술 스택
 
 Java 21 · Spring Boot · Spring Security(JWT) · Spring Data JPA · PostgreSQL · Redis · Flyway · Testcontainers · Docker Compose · GitHub Actions
-Docker · Prometheus · Grafana · (예정) k6 · Terraform · AWS
+Docker · Prometheus · Grafana · k6 · (예정) Terraform · AWS
 
 ## 설계 문서
 
@@ -27,7 +27,8 @@ Docker · Prometheus · Grafana · (예정) k6 · Terraform · AWS
 | [ERD](docs/design/erd.md) | 테이블 구조와 설계 이유 |
 | [좌석 상태 전이](docs/design/seat-state.md) | AVAILABLE → HELD → SOLD 규칙과 동시성 위험 지점 |
 | [API 명세 v1](docs/api/api-v1.md) | 엔드포인트, 에러 코드 |
-| [결정 기록 (ADR)](docs/adr/) | 주요 기술 결정과 이유 (관측성: ADR-0005) |
+| [결정 기록 (ADR)](docs/adr/) | 주요 기술 결정과 이유 (관측성: ADR-0005, 부하 테스트: ADR-0006) |
+| [부하 테스트](loadtest/README.md) | k6 시나리오, 실행 방법, 결과 읽는 법 |
 
 ## 로컬 실행
 
@@ -59,12 +60,24 @@ docker compose -f deploy/local/compose.yaml up -d --build
 
 <!-- TODO: 첫 부하 테스트 후 대시보드 캡처를 docs/images/에 추가하고 여기에 넣는다 -->
 
+## 부하 테스트
+
+1,000명이 동시에 좌석 100석에 몰리는 상황을 k6로 재현하고, 끝난 뒤 DB 정합성까지 검사한다.
+
+```powershell
+./loadtest/run.ps1        # 스택 확인 → 시드 → k6 → 정합성 검증
+```
+
+자세한 내용: [loadtest/README.md](loadtest/README.md)
+
+**기준선 결과 (락 없음, [리포트](docs/perf/2026-11-19-hot-seat-baseline.md))**: 중복 판매는 0건이지만, 5회 실행에서 25명이 "선점 성공" 응답을 받고도 좌석을 빼앗겼다(거짓 성공). 응답시간 p95는 SLO의 3~7배였고, 주된 원인은 DB 커넥션 풀(10개) 대기였다.
+
 ## 진행 기록
 
 | 기간 | 단계 | 상태 |
 | --- | --- | --- |
 | ~11/16 | 설계(ERD, API, ADR), 뼈대, CI, 중복 판매 방지 제약조건 테스트 | ✅ |
 | ~11/18 | MVP: 공연 조회 · 좌석 조회 · 로그인(JWT) · 좌석 선점 · 예매 확정 | ✅ |
-| 11/24~11/30 | Docker 이미지 ✅ · Prometheus·Grafana ✅ · 첫 k6 부하 테스트 | 진행 중 |
+| 11/24~11/30 | Docker 이미지 ✅ · Prometheus·Grafana ✅ · 첫 k6 부하 테스트 ✅ | 진행 중 |
 | 12/1~12/14 | Terraform으로 AWS 구축, 자동 배포, 동시성 개선 비교 | |
 | 12/15~ | 장애 실험·장애 보고서, 마무리 | |
